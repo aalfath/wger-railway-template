@@ -72,16 +72,12 @@ fi
 # --- Database: first-run setup and migrations, under a Postgres advisory lock ----
 python3 /usr/local/bin/wger-railway-setup
 
-# Fresh install: queue the exercise image download (Celery runs it in the background).
-# Repeats on each start until the first images have arrived.
-if [ "$USE_CELERY" = "True" ] && [ "${SYNC_EXERCISE_IMAGES_ON_FIRST_START:-True}" = "True" ]; then
-  python3 manage.py shell -c "
-from wger.exercises.models import ExerciseImage
-if not ExerciseImage.objects.exists():
-    from wger.exercises.tasks import sync_images_task
-    sync_images_task.delay()
-    print('wger-railway: queued the exercise image download')
-" || echo "wger-railway: could not queue the image download (retries on the next start)"
+# Queue an exercise image sync on every start (Celery runs it in the background). It only
+# downloads images that are missing, so it finishes a first download a redeploy interrupted.
+if [ "$USE_CELERY" = "True" ] && [ "${SYNC_EXERCISE_IMAGES_ON_START:-True}" = "True" ]; then
+  python3 manage.py shell -c "from wger.exercises.tasks import sync_images_task; sync_images_task.delay()" >/dev/null \
+    && echo "wger-railway: queued the exercise image sync" \
+    || echo "wger-railway: could not queue the image sync (retries on the next start)"
 fi
 
 # --- Run ----------------------------------------------------------------------
