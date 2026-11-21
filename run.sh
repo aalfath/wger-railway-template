@@ -82,7 +82,7 @@ fi
 
 # --- Run ----------------------------------------------------------------------
 pids=()
-gunicorn wger.wsgi:application --preload --bind 127.0.0.1:8000 & pids+=($!)
+gunicorn wger.wsgi:application --bind 127.0.0.1:8000 & pids+=($!)
 if [ "$USE_CELERY" = "True" ]; then
   rm -f "$DATA/beat/celerybeat.pid"
   celery --app wger worker --beat --pool=threads --concurrency="$CELERY_WORKER_CONCURRENCY" \
