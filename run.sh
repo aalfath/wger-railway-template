@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs as the wger user. Sets Railway defaults, prepares the database, then runs
-# gunicorn + Celery (worker with embedded beat) + Caddy. If any of them stops,
+# gunicorn + Celery (worker with embedded beat, threads pool) + Caddy. If any of them stops,
 # the container exits non-zero so Railway's ON_FAILURE policy restarts it.
 set -euo pipefail
 cd /home/wger/src
@@ -104,7 +104,7 @@ pids=()
 gunicorn wger.wsgi:application --preload --bind 127.0.0.1:8000 & pids+=($!)
 if [ "$USE_CELERY" = "True" ]; then
   rm -f "$DATA/beat/celerybeat.pid"
-  celery --app wger worker --beat --pool=gevent --concurrency="$CELERY_WORKER_CONCURRENCY" \
+  celery --app wger worker --beat --pool=threads --concurrency="$CELERY_WORKER_CONCURRENCY" \
     --schedule "$DATA/beat/celerybeat-schedule" --loglevel INFO & pids+=($!)
 fi
 caddy run --config /etc/caddy/Caddyfile --adapter caddyfile & pids+=($!)
