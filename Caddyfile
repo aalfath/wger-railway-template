@@ -1,0 +1,38 @@
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+	request_body {
+		max_size 100MB
+	}
+
+	# Health check without login: the app's version endpoint.
+	handle /healthz {
+		rewrite * /api/v2/version/
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle_path /static/* {
+		root * /home/wger/static
+		header Cache-Control "public, max-age=3600"
+		file_server
+	}
+
+	handle_path /media/* {
+		root * /data/media
+		file_server {
+			hide .*
+		}
+	}
+
+	handle {
+		# Railway's edge writes the visitor's address into X-Real-IP.
+		reverse_proxy 127.0.0.1:8000 {
+			header_up X-Forwarded-For {http.request.header.X-Real-IP}
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+	}
+}
