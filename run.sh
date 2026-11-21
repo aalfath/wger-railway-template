@@ -69,29 +69,8 @@ if [ -z "${JWT_PRIVATE_KEY:-}" ]; then
   set -a; . "$JWT_FILE"; set +a
 fi
 
-# --- Database: first-run setup, then migrations --------------------------------
-echo "wger-railway: waiting for the database"
-for i in $(seq 1 60); do
-  python3 -c "import os,psycopg; psycopg.connect(os.environ['DATABASE_URL'], connect_timeout=3).close()" 2>/dev/null && break
-  [ "$i" = 60 ] && die "database not reachable after 3 minutes"
-  sleep 3
-done
-
-wger bootstrap --no-process-static
-echo "wger-railway: applying migrations"
-python3 manage.py migrate --no-input
-python3 manage.py set-site-url
-
-# Upstream creates the admin with the well-known password "adminadmin". Replace it
-# with WGER_ADMIN_PASSWORD, but never overwrite a password the owner has changed.
-python3 manage.py shell -c "
-import os
-from django.contrib.auth.models import User
-u = User.objects.filter(username='admin').first()
-if u and (u.check_password('adminadmin') or not u.has_usable_password()):
-    u.set_password(os.environ['WGER_ADMIN_PASSWORD']); u.save()
-    print('wger-railway: admin password set from WGER_ADMIN_PASSWORD')
-"
+# --- Database: first-run setup and migrations, under a Postgres advisory lock ----
+python3 /usr/local/bin/wger-railway-setup
 
 # Fresh install: queue the exercise image download (Celery runs it in the background).
 # Repeats on each start until the first images have arrived.

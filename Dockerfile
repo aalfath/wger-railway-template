@@ -9,7 +9,8 @@ COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY entrypoint.sh /usr/local/bin/wger-railway-entrypoint
 COPY run.sh /usr/local/bin/wger-railway-run
-RUN chmod 755 /usr/local/bin/wger-railway-entrypoint /usr/local/bin/wger-railway-run
+COPY setup.py /usr/local/bin/wger-railway-setup
+RUN chmod 755 /usr/local/bin/wger-railway-entrypoint /usr/local/bin/wger-railway-run /usr/local/bin/wger-railway-setup
 
 # Collect static files at build time, so a cold start only has to migrate the database.
 USER wger
