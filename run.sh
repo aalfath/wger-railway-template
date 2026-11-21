@@ -93,10 +93,16 @@ if u and (u.check_password('adminadmin') or not u.has_usable_password()):
     print('wger-railway: admin password set from WGER_ADMIN_PASSWORD')
 "
 
-# Fetch the exercise images once on a fresh install (Celery does it in the background).
-if [ ! -e "$DATA/.images-requested" ] && [ "$USE_CELERY" = "True" ]; then
-  python3 manage.py shell -c "from wger.exercises.tasks import sync_images_task; sync_images_task.delay()" \
-    && touch "$DATA/.images-requested" || echo "wger-railway: could not queue the image download (will retry next start)"
+# Fresh install: queue the exercise image download (Celery runs it in the background).
+# Repeats on each start until the first images have arrived.
+if [ "$USE_CELERY" = "True" ] && [ "${SYNC_EXERCISE_IMAGES_ON_FIRST_START:-True}" = "True" ]; then
+  python3 manage.py shell -c "
+from wger.exercises.models import ExerciseImage
+if not ExerciseImage.objects.exists():
+    from wger.exercises.tasks import sync_images_task
+    sync_images_task.delay()
+    print('wger-railway: queued the exercise image download')
+" || echo "wger-railway: could not queue the image download (retries on the next start)"
 fi
 
 # --- Run ----------------------------------------------------------------------
